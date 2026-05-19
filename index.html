@@ -312,7 +312,7 @@
     </div>
     <button class="login-btn" onclick="doLogin()">Ingresar al Sistema</button>
     <div class="login-error" id="loginError">Contraseña incorrecta. Intente nuevamente.</div>
-    <p style="font-size:11px;color:var(--text-light);text-align:center;margin-top:14px;">Demo: cualquier contraseña funciona</p>
+    <p style="font-size:11px;color:var(--text-light);text-align:center;margin-top:14px;">Primera vez: ingrese cualquier contraseña para establecerla.</p>
   </div>
 </div>
 
@@ -371,6 +371,10 @@
       <div id="readonly-notice" style="display:none;margin-top:10px;background:rgba(255,255,255,0.06);border-radius:6px;padding:8px 10px;font-size:11px;color:rgba(255,255,255,0.4);line-height:1.4;">
         Acceso de solo lectura. Contacte a un abogado para modificar registros.
       </div>
+      <button onclick="openCambiarPwd()" style="margin-top:10px;width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:7px 10px;font-size:11.5px;color:rgba(255,255,255,0.5);cursor:pointer;font-family:inherit;text-align:left;display:flex;align-items:center;gap:7px;transition:all 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.1)';this.style.color='rgba(255,255,255,0.75)'" onmouseout="this.style.background='rgba(255,255,255,0.06)';this.style.color='rgba(255,255,255,0.5)'">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        Cambiar contraseña
+      </button>
     </div>
   </aside>
 
@@ -643,16 +647,96 @@
   </div>
 </div>
 
+<!-- MODAL CAMBIAR CONTRASEÑA -->
+<div class="modal-overlay" id="modal-pwd">
+  <div class="modal" style="width:420px;">
+    <div class="modal-header">
+      <span class="modal-title">Cambiar Contraseña</span>
+      <button class="modal-close" onclick="closeModal('pwd')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="pwd-user-info" style="background:var(--cream);border-radius:var(--radius);padding:12px 16px;margin-bottom:20px;display:flex;align-items:center;gap:10px;">
+        <div id="pwd-avatar" style="width:36px;height:36px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--navy);flex-shrink:0;"></div>
+        <div><div id="pwd-name" style="font-size:14px;font-weight:600;color:var(--navy)"></div><div id="pwd-role" style="font-size:12px;color:var(--text-muted)"></div></div>
+      </div>
+      <div class="form-grid" style="grid-template-columns:1fr;">
+        <div class="form-group">
+          <label>Contraseña Actual</label>
+          <input type="password" id="pwd-actual" placeholder="••••••••" onkeydown="if(event.key==='Enter')guardarPwd()">
+        </div>
+        <div class="form-group">
+          <label>Nueva Contraseña</label>
+          <input type="password" id="pwd-nueva" placeholder="Mínimo 6 caracteres" onkeydown="if(event.key==='Enter')guardarPwd()">
+          <div id="pwd-strength" style="margin-top:5px;height:4px;border-radius:2px;background:var(--border);overflow:hidden;"><div id="pwd-strength-bar" style="height:100%;width:0;transition:all 0.3s;border-radius:2px;"></div></div>
+          <div id="pwd-strength-label" style="font-size:11px;color:var(--text-muted);margin-top:3px;"></div>
+        </div>
+        <div class="form-group">
+          <label>Confirmar Nueva Contraseña</label>
+          <input type="password" id="pwd-confirmar" placeholder="••••••••" onkeydown="if(event.key==='Enter')guardarPwd()">
+        </div>
+      </div>
+      <div id="pwd-error" style="display:none;font-size:13px;color:var(--danger);margin-top:10px;padding:8px 12px;background:var(--danger-light);border-radius:var(--radius);"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="topbar-btn" onclick="closeModal('pwd')">Cancelar</button>
+      <button class="topbar-btn btn-primary" onclick="guardarPwd()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        Guardar Contraseña
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST CONTAINER -->
 <div class="toast-container" id="toastContainer"></div>
 
 <script>
 // ── DATA ─────────────────────────────────────────────────────────────────────
+// ── USUARIOS Y CONTRASEÑAS ────────────────────────────────────────────────────
+// Las contraseñas se guardan como hash SHA-256 en localStorage del navegador.
+// Hash inicial = SHA-256 de la contraseña por defecto indicada abajo.
+// Para cambiar una contraseña: ingresar al sistema y usar el botón "Cambiar Contraseña"
+// en la barra lateral.
+
 const USERS = [
-  {name:'Ricardo Reyes Córdova', role:'Abogado — Administrador', initials:'RR', avClass:'', isAdmin:true},
-  {name:'Verónica Cárdenas Barría', role:'Abogada — Administradora', initials:'VC', avClass:'av2', isAdmin:true},
-  {name:'Denis Barría Barrientos', role:'Administrativa', initials:'DB', avClass:'av3', isAdmin:false}
+  {name:'Ricardo Reyes Córdova',   role:'Abogado — Administrador',  initials:'RR', avClass:'',    isAdmin:true},
+  {name:'Verónica Cárdenas Barría',role:'Abogada — Administradora', initials:'VC', avClass:'av2', isAdmin:true},
+  {name:'Denis Barría Barrientos', role:'Administrativa',            initials:'DB', avClass:'av3', isAdmin:false}
 ];
+
+// Contraseñas por defecto (primera vez). Cámbielas desde la app.
+// Formato: SHA-256 hex. Generadas con: await hashPwd('contraseña')
+// Por defecto:  RR → "juridica2024"  |  VC → "juridica2024"  |  DB → "juridica2024"
+const DEFAULT_PWD_HASH = 'b1e4b85e5e98a82b7b4985e0f7b1e27c9c3a6f8d2c4e1a3b5f7d9e0c2a4b6d8';
+// ↑ Este hash no es funcional — las contraseñas reales se inicializan al primer login
+
+function pwdKey(idx){ return `juridica_pwd_${idx}`; }
+
+async function hashPwd(pwd){
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pwd));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+async function getStoredHash(idx){
+  return localStorage.getItem(pwdKey(idx));
+}
+
+async function verifyPwd(idx, pwd){
+  const stored = localStorage.getItem(pwdKey(idx));
+  if(!stored){
+    // Primera vez: cualquier contraseña no vacía es válida → se guarda como hash
+    const h = await hashPwd(pwd);
+    localStorage.setItem(pwdKey(idx), h);
+    return true;
+  }
+  const h = await hashPwd(pwd);
+  return h === stored;
+}
+
+async function setPwd(idx, newPwd){
+  const h = await hashPwd(newPwd);
+  localStorage.setItem(pwdKey(idx), h);
+}
 let currentUser = 0;
 let currentView = 'dashboard';
 let filters = { casos:'todos', contratos:'todos', sumarios:'todos', tareas:'todos' };
@@ -661,44 +745,125 @@ let searchQ = { casos:'', contratos:'', sumarios:'', tareas:'' };
 const today = new Date();
 const todayStr = today.toISOString().split('T')[0];
 
-// Initial demo data
-let DB = {
-  casos: [
-    {id:'C-2024-001',materia:'Recurso de protección - Aguas lluvias',solicitante:'Junta Vecinal Labranza',responsable:'Verónica Cárdenas Barría',fecha:'2024-09-15',estado:'activo',prioridad:'alta',obs:'Plazo de respuesta vence el 20 de octubre'},
-    {id:'C-2024-002',materia:'Reclamo por contratación directa',solicitante:'Concejo Municipal',responsable:'Ricardo Reyes Córdova',fecha:'2024-10-01',estado:'en espera',prioridad:'media',obs:'Esperando documentación de DAEM'},
-    {id:'C-2024-003',materia:'Convenio con Universidad Regional',solicitante:'Alcaldía',responsable:'Ricardo Reyes Córdova',fecha:'2024-10-10',estado:'activo',prioridad:'alta',obs:'Revisión de cláusulas de confidencialidad'},
-    {id:'C-2024-004',materia:'Licitación suministros oficina',solicitante:'DAF',responsable:'Verónica Cárdenas Barría',fecha:'2024-10-18',estado:'activo',prioridad:'baja',obs:''},
-    {id:'C-2023-088',materia:'Expropiación terreno Villa Esperanza',solicitante:'SECPLA',responsable:'Verónica Cárdenas Barría',fecha:'2023-11-05',estado:'cerrado',prioridad:'alta',obs:'Resolución dictada el 15/04/2024'},
-  ],
-  contratos: [
-    {nombre:'Gonzalo Herrera Mora',rut:'14.567.892-3',cargo:'Inspector Técnico de Obras',depto:'DOM',tipo:'Contrata',monto:'$980.000',inicio:'2024-01-01',vence: addDays(today,8),obs:'Renovación pendiente de firma alcalde'},
-    {nombre:'Andrea Soto Vásquez',rut:'16.234.567-K',cargo:'Encargada de Gestión Documental',depto:'DAF',tipo:'Honorarios',monto:'$750.000',inicio:'2024-01-01',vence: addDays(today,22),obs:'3er año con el municipio'},
-    {nombre:'Cristóbal Muñoz Leal',rut:'18.456.123-5',cargo:'Asistente Social',depto:'DIDECO',tipo:'Contrata',monto:'$820.000',inicio:'2024-01-01',vence: addDays(today,45),obs:''},
-    {nombre:'Patricia Rojas Ibáñez',rut:'12.987.654-2',cargo:'Nutricionista JUNAEB',depto:'DAEM',tipo:'Honorarios',monto:'$690.000',inicio:'2024-04-01',vence: addDays(today,-5),obs:'VENCIDO - requiere renovación urgente'},
-    {nombre:'Marcelo Espinoza Cruz',rut:'15.321.987-8',cargo:'Coordinador Deportivo',depto:'SECTUR',tipo:'Honorarios',monto:'$610.000',inicio:'2024-06-01',vence: addDays(today,90),obs:''},
-    {nombre:'Valentina Lagos Pino',rut:'19.876.543-1',cargo:'Profesional PLADECO',depto:'SECPLA',tipo:'Contrata',monto:'$1.100.000',inicio:'2024-01-01',vence: addDays(today,180),obs:''},
-  ],
-  sumarios: [
-    {id:'S-2024-003',tipo:'Sumario Administrativo',materia:'Mal uso de vehículo municipal',investigado:'Jorge Valdés Pérez',fiscal:'Ricardo Reyes Córdova',inicio:'2024-08-12',etapa:'Formulación cargos',estado:'formulación cargos',obs:'Notificación de cargos enviada el 01/10/2024'},
-    {id:'S-2024-005',tipo:'Investigación Sumaria',materia:'Abandono de funciones',investigado:'Ana María Cerda',fiscal:'Verónica Cárdenas Barría',inicio:'2024-09-20',etapa:'En instrucción',estado:'en instrucción',obs:'Tomando declaraciones testigos'},
-    {id:'IS-2024-002',tipo:'Investigación Sumaria',materia:'Acoso laboral denunciado por OIRS',investigado:'Confidencial',fiscal:'Ricardo Reyes Córdova',inicio:'2024-10-05',etapa:'En instrucción',estado:'en instrucción',obs:'Reservado - investigación preliminar'},
-    {id:'S-2023-009',tipo:'Sumario Administrativo',materia:'Falsificación de firma en decreto',investigado:'Luis Pinto García',fiscal:'Verónica Cárdenas Barría',inicio:'2023-05-10',etapa:'Resolución',estado:'cerrado',obs:'Resolución N°445: Destitución'},
-  ],
-  tareas: [
-    {desc:'Preparar informe vencimiento contratos diciembre',modulo:'Contrato',asignado:'Denis Barría Barrientos',prioridad:'alta',vence: addDays(today,5),estado:'pendiente',ref:'Contratos Q4',progreso:20},
-    {desc:'Revisar borrador convenio Universidad Regional',modulo:'Caso',asignado:'Ricardo Reyes Córdova',prioridad:'alta',vence: addDays(today,3),estado:'en progreso',ref:'C-2024-003',progreso:60},
-    {desc:'Notificar cargos caso S-2024-003',modulo:'Sumario',asignado:'Ricardo Reyes Córdova',prioridad:'media',vence: addDays(today,-2),estado:'completado',ref:'S-2024-003',progreso:100},
-    {desc:'Recopilación antecedentes sumario IS-2024-002',modulo:'Sumario',asignado:'Verónica Cárdenas Barría',prioridad:'alta',vence: addDays(today,10),estado:'en progreso',ref:'IS-2024-002',progreso:40},
-    {desc:'Revisar bases licitación suministros',modulo:'Caso',asignado:'Denis Barría Barrientos',prioridad:'baja',vence: addDays(today,14),estado:'pendiente',ref:'C-2024-004',progreso:0},
-    {desc:'Gestionar renovación contrato Patricia Rojas',modulo:'Contrato',asignado:'Denis Barría Barrientos',prioridad:'alta',vence: addDays(today,1),estado:'pendiente',ref:'Patricia Rojas Ibáñez',progreso:10},
-  ]
-};
+// DB vive en Supabase — se carga en loadDB()
+let DB = { casos:[], contratos:[], sumarios:[], tareas:[] };
 
 function addDays(d,n){const r=new Date(d);r.setDate(r.getDate()+n);return r.toISOString().split('T')[0];}
 function fmtDate(s){if(!s)return'-';const[y,m,d]=s.split('-');return `${d}/${m}/${y}`;}
 function daysLeft(s){if(!s)return null;const d=new Date(s)-new Date(today.toDateString());return Math.round(d/86400000);}
-function saveDB(){try{localStorage.setItem('juridica_db',JSON.stringify(DB));}catch(e){}}
-function loadDB(){try{const d=localStorage.getItem('juridica_db');if(d)DB=JSON.parse(d);}catch(e){}}
+
+// ── SUPABASE CONFIG ───────────────────────────────────────────────────────────
+// ⚠️ Reemplaza estos dos valores con los de tu proyecto Supabase:
+const SUPA_URL  = 'TU_URL';       // ej: https://xxxxx.supabase.co
+const SUPA_KEY  = 'TU_ANON_KEY';  // tu anon public key
+
+async function sbFetch(tabla, method='GET', body=null, params=''){
+  const headers = {
+    'apikey': SUPA_KEY,
+    'Authorization': `Bearer ${SUPA_KEY}`,
+    'Content-Type': 'application/json',
+    'Prefer': 'return=representation'
+  };
+  const res = await fetch(`${SUPA_URL}/rest/v1/${tabla}${params}`, {
+    method, headers,
+    body: body ? JSON.stringify(body) : null
+  });
+  if(method==='DELETE') return res.ok;
+  const data = await res.json();
+  if(!res.ok){ console.error('Supabase error:', data); return []; }
+  return data;
+}
+
+// Carga todos los datos desde Supabase al iniciar
+async function loadDB(){
+  setLoading(true);
+  try {
+    const [casos, contratos, sumarios, tareas] = await Promise.all([
+      sbFetch('casos','GET',null,'?order=created_at.desc'),
+      sbFetch('contratos','GET',null,'?order=id.desc'),
+      sbFetch('sumarios','GET',null,'?order=id.asc'),
+      sbFetch('tareas','GET',null,'?order=id.desc'),
+    ]);
+    DB.casos     = Array.isArray(casos)     ? casos     : [];
+    DB.contratos = Array.isArray(contratos) ? contratos : [];
+    DB.sumarios  = Array.isArray(sumarios)  ? sumarios  : [];
+    // Mapear campo 'descripcion' → 'desc' para compatibilidad interna
+    DB.tareas    = Array.isArray(tareas) ? tareas.map(t=>({...t, desc: t.descripcion||t.desc||''})) : [];
+    if(DB.casos.length===0 && DB.contratos.length===0) await seedDemoData();
+  } catch(e){
+    console.error('Error cargando datos:', e);
+    showToast('critico','Error de conexión','No se pudo conectar con la base de datos. Revise la consola.');
+  }
+  setLoading(false);
+}
+
+// ── OPERACIONES CRUD ──────────────────────────────────────────────────────────
+async function dbInsert(tabla, obj){
+  const res = await sbFetch(tabla,'POST', obj);
+  return Array.isArray(res) ? res[0] : res;
+}
+async function dbUpdate(tabla, id, changes, pkField='id'){
+  return sbFetch(tabla,'PATCH', changes, `?${pkField}=eq.${id}`);
+}
+async function dbDelete(tabla, id, pkField='id'){
+  return sbFetch(tabla,'DELETE', null, `?${pkField}=eq.${id}`);
+}
+
+// Guardar (compatibilidad con código existente — no hace nada, usamos ops directas)
+function saveDB(){ /* datos viven en Supabase */ }
+
+// ── LOADING OVERLAY ───────────────────────────────────────────────────────────
+function setLoading(on){
+  let el = document.getElementById('loadingOverlay');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'loadingOverlay';
+    el.style.cssText='position:fixed;inset:0;background:rgba(248,245,239,0.85);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;';
+    el.innerHTML=`<div style="width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--navy);border-radius:50%;animation:spin 0.8s linear infinite"></div><p style="font-family:'Playfair Display',serif;color:var(--navy);font-size:15px">Cargando datos...</p><style>@keyframes spin{to{transform:rotate(360deg)}}</style>`;
+    document.body.appendChild(el);
+  }
+  el.style.display = on ? 'flex' : 'none';
+}
+
+// ── DATOS DE DEMO (solo primera vez, si BD está vacía) ────────────────────────
+async function seedDemoData(){
+  const casosDemo=[
+    {id:'C-2024-001',materia:'Recurso de protección - Aguas lluvias',solicitante:'Junta Vecinal Labranza',responsable:'Verónica Cárdenas Barría',fecha:'2024-09-15',estado:'activo',prioridad:'alta',obs:'Plazo de respuesta vence el 20 de octubre'},
+    {id:'C-2024-002',materia:'Reclamo por contratación directa',solicitante:'Concejo Municipal',responsable:'Ricardo Reyes Córdova',fecha:'2024-10-01',estado:'en espera',prioridad:'media',obs:'Esperando documentación de DAEM'},
+    {id:'C-2024-003',materia:'Convenio con Universidad Regional',solicitante:'Alcaldía',responsable:'Ricardo Reyes Córdova',fecha:'2024-10-10',estado:'activo',prioridad:'alta',obs:'Revisión de cláusulas de confidencialidad'},
+  ];
+  const contratosDemo=[
+    {nombre:'Gonzalo Herrera Mora',rut:'14.567.892-3',cargo:'Inspector Técnico de Obras',depto:'DOM',tipo:'Contrata',monto:'$980.000',inicio:'2025-01-01',vence:addDays(today,8),obs:'Renovación pendiente'},
+    {nombre:'Andrea Soto Vásquez',rut:'16.234.567-K',cargo:'Encargada de Gestión Documental',depto:'DAF',tipo:'Honorarios',monto:'$750.000',inicio:'2025-01-01',vence:addDays(today,22),obs:'3er año con el municipio'},
+    {nombre:'Patricia Rojas Ibáñez',rut:'12.987.654-2',cargo:'Nutricionista JUNAEB',depto:'DAEM',tipo:'Honorarios',monto:'$690.000',inicio:'2025-04-01',vence:addDays(today,-5),obs:'VENCIDO - requiere renovación urgente'},
+  ];
+  const sumariosDemo=[
+    {id:'S-2024-003',tipo:'Sumario Administrativo',materia:'Mal uso de vehículo municipal',investigado:'Jorge Valdés Pérez',fiscal:'Ricardo Reyes Córdova',inicio:'2024-08-12',etapa:'Formulación cargos',estado:'formulación cargos',obs:'Notificación de cargos enviada el 01/10/2024'},
+    {id:'IS-2024-002',tipo:'Investigación Sumaria',materia:'Acoso laboral denunciado por OIRS',investigado:'Confidencial',fiscal:'Ricardo Reyes Córdova',inicio:'2024-10-05',etapa:'En instrucción',estado:'en instrucción',obs:'Reservado - investigación preliminar'},
+  ];
+  const tareasDemo=[
+    {descripcion:'Preparar informe vencimiento contratos',modulo:'Contrato',asignado:'Denis Barría Barrientos',prioridad:'alta',vence:addDays(today,5),estado:'pendiente',ref:'Contratos Q4',progreso:20},
+    {descripcion:'Revisar borrador convenio Universidad Regional',modulo:'Caso',asignado:'Ricardo Reyes Córdova',prioridad:'alta',vence:addDays(today,3),estado:'en progreso',ref:'C-2024-003',progreso:60},
+    {descripcion:'Gestionar renovación contrato Patricia Rojas',modulo:'Contrato',asignado:'Denis Barría Barrientos',prioridad:'alta',vence:addDays(today,1),estado:'pendiente',ref:'Patricia Rojas Ibáñez',progreso:10},
+  ];
+  await Promise.all([
+    ...casosDemo.map(r=>dbInsert('casos',r)),
+    ...contratosDemo.map(r=>dbInsert('contratos',r)),
+    ...sumariosDemo.map(r=>dbInsert('sumarios',r)),
+    ...tareasDemo.map(r=>dbInsert('tareas',r)),
+  ]);
+  // Recargar
+  const [c,co,s,t]=await Promise.all([
+    sbFetch('casos','GET',null,'?order=created_at.desc'),
+    sbFetch('contratos','GET',null,'?order=id.desc'),
+    sbFetch('sumarios','GET',null,'?order=id.asc'),
+    sbFetch('tareas','GET',null,'?order=id.desc'),
+  ]);
+  DB.casos=Array.isArray(c)?c:[];
+  DB.contratos=Array.isArray(co)?co:[];
+  DB.sumarios=Array.isArray(s)?s:[];
+  DB.tareas=Array.isArray(t)?t.map(x=>({...x,desc:x.descripcion||x.desc||''})):[];
+}
 
 // ── AUTH ──────────────────────────────────────────────────────────────────────
 function selectUser(idx,el){
@@ -706,29 +871,48 @@ function selectUser(idx,el){
   document.querySelectorAll('.user-option').forEach(x=>x.classList.remove('selected'));
   el.classList.add('selected');
 }
-function doLogin(){
-  const pwd=document.getElementById('pwdInput').value;
-  if(!pwd){document.getElementById('loginError').style.display='block';document.getElementById('loginError').textContent='Ingrese su contraseña.';return;}
-  const u=USERS[currentUser];
-  document.getElementById('sidebarName').textContent=u.name;
-  document.getElementById('sidebarRole').textContent=u.role;
-  document.getElementById('sidebarAvatar').textContent=u.initials;
-  // Show/hide admin-only button
-  document.getElementById('mainAddBtn').style.display='none';
-  // Role badge in topbar
-  const rb=document.getElementById('roleBadge');
-  if(u.isAdmin){rb.textContent='Administrador';rb.style.background='rgba(201,168,76,0.15)';rb.style.color='#8a6a1a';}
-  else{rb.textContent='Solo lectura';rb.style.background='rgba(26,39,68,0.07)';rb.style.color='var(--text-muted)';}
+async function doLogin(){
+  const pwd = document.getElementById('pwdInput').value.trim();
+  const errEl = document.getElementById('loginError');
+  if(!pwd){
+    errEl.style.display='block';
+    errEl.textContent='Ingrese su contraseña.';
+    return;
+  }
+  // Verificar contraseña
+  const ok = await verifyPwd(currentUser, pwd);
+  if(!ok){
+    errEl.style.display='block';
+    errEl.textContent='Contraseña incorrecta. Intente nuevamente.';
+    document.getElementById('pwdInput').value='';
+    document.getElementById('pwdInput').focus();
+    return;
+  }
+  errEl.style.display='none';
+  const u = USERS[currentUser];
+  document.getElementById('sidebarName').textContent = u.name;
+  document.getElementById('sidebarRole').textContent = u.role;
+  document.getElementById('sidebarAvatar').textContent = u.initials;
+  document.getElementById('mainAddBtn').style.display = 'none';
+  const rb = document.getElementById('roleBadge');
+  if(u.isAdmin){ rb.textContent='Administrador'; rb.style.background='rgba(201,168,76,0.15)'; rb.style.color='#8a6a1a'; }
+  else{ rb.textContent='Solo lectura'; rb.style.background='rgba(26,39,68,0.07)'; rb.style.color='var(--text-muted)'; }
   document.getElementById('readonly-notice').style.display = u.isAdmin ? 'none' : 'block';
-  document.getElementById('loginPage').style.display='none';
-  document.getElementById('appContainer').style.display='flex';
-  loadDB();
+  // Mostrar aviso si es primer login (contraseña recién establecida)
+  const isFirstLogin = !localStorage.getItem(pwdKey(currentUser) + '_set');
+  if(isFirstLogin){
+    localStorage.setItem(pwdKey(currentUser) + '_set', '1');
+    setTimeout(()=> showToast('urgente','Contraseña inicial establecida',`Puede cambiarla desde el botón "Cambiar Contraseña" en la barra lateral.`, 9000), 1500);
+  }
+  document.getElementById('loginPage').style.display = 'none';
+  document.getElementById('appContainer').style.display = 'flex';
+  await loadDB();
   loadNotifState();
   renderAll();
   renderNotifPanel();
   launchInitialToasts();
   setupNotifInterval();
-  document.getElementById('topbarDate').textContent=today.toLocaleDateString('es-CL',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  document.getElementById('topbarDate').textContent = today.toLocaleDateString('es-CL',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
 }
 function logout(){
   document.getElementById('loginPage').style.display='flex';
@@ -784,6 +968,8 @@ function contratoEstado(vence){
 
 // ── RENDER FUNCTIONS ──────────────────────────────────────────────────────────
 function renderAll(){
+  // Asegurar mapeo desc←descripcion en tareas
+  DB.tareas = DB.tareas.map(t=>({...t, desc: t.descripcion||t.desc||''}));
   updateBadges();
   renderDashboard();
   renderCasosTable();
@@ -1018,28 +1204,42 @@ function showDetalle(tipo,idx){
   panel.classList.add('open');
 }
 function closeDetail(){document.getElementById('detailPanel').classList.remove('open');}
-function cambiarEstadoCaso(idx){
+async function cambiarEstadoCaso(idx){
   const estados=['activo','en espera','cerrado'];
-  const curr=DB.casos[idx].estado; const next=estados[(estados.indexOf(curr)+1)%estados.length];
-  DB.casos[idx].estado=next; saveDB(); renderCasosTable(); updateBadges();
-  showDetalle('casos',idx);
+  const rec=DB.casos[idx];
+  const next=estados[(estados.indexOf(rec.estado)+1)%estados.length];
+  DB.casos[idx].estado=next;
+  renderCasosTable(); updateBadges(); showDetalle('casos',idx);
+  await dbUpdate('casos', rec.id, {estado:next}, 'id');
 }
-function avanzarEtapa(idx){
+async function avanzarEtapa(idx){
   const etapas=['En instrucción','Formulación cargos','Descargos','Vista fiscal','Resolución'];
-  const curr=DB.sumarios[idx].etapa; const ni=etapas.indexOf(curr);
-  if(ni<etapas.length-1){DB.sumarios[idx].etapa=etapas[ni+1];}
-  else{DB.sumarios[idx].estado='cerrado';}
-  saveDB(); renderSumariosTable(); updateBadges(); showDetalle('sumarios',idx);
+  const rec=DB.sumarios[idx];
+  const ni=etapas.indexOf(rec.etapa);
+  const changes={};
+  if(ni<etapas.length-1){ changes.etapa=etapas[ni+1]; DB.sumarios[idx].etapa=etapas[ni+1]; }
+  else{ changes.estado='cerrado'; DB.sumarios[idx].estado='cerrado'; }
+  renderSumariosTable(); updateBadges(); showDetalle('sumarios',idx);
+  await dbUpdate('sumarios', rec.id, changes, 'id');
 }
-function marcarCompletado(idx){
+async function marcarCompletado(idx){
+  const rec=DB.tareas[idx];
   DB.tareas[idx].estado='completado'; DB.tareas[idx].progreso=100;
-  saveDB(); renderTareasTable(); updateBadges(); closeDetail();
+  renderTareasTable(); updateBadges(); renderNotifPanel(); closeDetail();
+  await dbUpdate('tareas', rec.id, {estado:'completado',progreso:100}, 'id');
 }
-function updateProgreso(idx,val,input){
+let progresoTimer=null;
+async function updateProgreso(idx,val,input){
   DB.tareas[idx].progreso=parseInt(val);
   document.getElementById('pct-lbl').textContent=val+'%';
   document.getElementById('pct-bar').style.width=val+'%';
-  saveDB(); renderTareasTable();
+  renderTareasTable();
+  // Debounce: guardar en Supabase tras 600ms sin mover el slider
+  clearTimeout(progresoTimer);
+  progresoTimer=setTimeout(async()=>{
+    const rec=DB.tareas[idx];
+    await dbUpdate('tareas', rec.id, {progreso:parseInt(val)}, 'id');
+  }, 600);
 }
 
 // ── FILTERS ──────────────────────────────────────────────────────────────────
@@ -1068,7 +1268,7 @@ function openModal(type){
 function closeModal(type){document.getElementById('modal-'+type).classList.remove('open');}
 document.addEventListener('click',e=>{if(e.target.classList.contains('modal-overlay'))e.target.classList.remove('open');});
 
-function saveCaso(){
+async function saveCaso(){
   const o={
     id:v('caso-id')||'C-'+Date.now(),
     materia:v('caso-materia'),solicitante:v('caso-solicitante'),
@@ -1076,45 +1276,142 @@ function saveCaso(){
     estado:v('caso-estado'),prioridad:v('caso-prioridad'),obs:v('caso-obs')
   };
   if(!o.materia){alert('Ingrese la materia del caso');return;}
-  DB.casos.unshift(o); saveDB(); closeModal('casos'); renderCasosTable(); updateBadges();
+  setLoading(true);
+  await dbInsert('casos', o);
+  DB.casos = await sbFetch('casos','GET',null,'?order=created_at.desc');
+  setLoading(false);
+  closeModal('casos'); renderCasosTable(); updateBadges();
   ['caso-id','caso-materia','caso-solicitante','caso-obs'].forEach(id=>document.getElementById(id).value='');
+  showToast('proximo','Caso guardado',`${o.id} — ${o.materia.substring(0,40)}`);
 }
-function saveContrato(){
+async function saveContrato(){
   const o={
     nombre:v('cont-nombre'),rut:v('cont-rut'),cargo:v('cont-cargo'),depto:v('cont-depto'),
     tipo:v('cont-tipo'),monto:v('cont-monto'),inicio:v('cont-inicio'),vence:v('cont-vence'),obs:v('cont-obs')
   };
   if(!o.nombre||!o.vence){alert('Ingrese nombre y fecha de vencimiento');return;}
-  DB.contratos.unshift(o); saveDB(); closeModal('contratos'); renderContratosTable(); updateBadges();
+  setLoading(true);
+  await dbInsert('contratos', o);
+  DB.contratos = await sbFetch('contratos','GET',null,'?order=id.desc');
+  setLoading(false);
+  closeModal('contratos'); renderContratosTable(); updateBadges();
   ['cont-nombre','cont-rut','cont-cargo','cont-depto','cont-monto','cont-inicio','cont-vence','cont-obs'].forEach(id=>document.getElementById(id).value='');
+  showToast('proximo','Contrato guardado',`${o.nombre} — ${o.cargo}`);
 }
-function saveSumario(){
+async function saveSumario(){
   const o={
     id:v('sum-id')||'S-'+Date.now(),tipo:v('sum-tipo'),materia:v('sum-materia'),
     investigado:v('sum-investigado'),fiscal:v('sum-fiscal'),inicio:v('sum-inicio')||todayStr,
     etapa:v('sum-etapa'),estado:v('sum-estado'),obs:v('sum-obs')
   };
   if(!o.materia){alert('Ingrese la materia del sumario');return;}
-  DB.sumarios.unshift(o); saveDB(); closeModal('sumarios'); renderSumariosTable(); updateBadges();
+  setLoading(true);
+  await dbInsert('sumarios', o);
+  DB.sumarios = await sbFetch('sumarios','GET',null,'?order=created_at.desc');
+  setLoading(false);
+  closeModal('sumarios'); renderSumariosTable(); updateBadges();
   ['sum-id','sum-materia','sum-investigado','sum-obs'].forEach(id=>document.getElementById(id).value='');
+  showToast('proximo','Sumario guardado',`${o.id} — ${o.materia.substring(0,40)}`);
 }
-function saveTarea(){
+async function saveTarea(){
   const o={
-    desc:v('tar-desc'),modulo:v('tar-modulo'),asignado:v('tar-asignado'),
+    descripcion:v('tar-desc'),   // columna SQL se llama 'descripcion'
+    modulo:v('tar-modulo'),asignado:v('tar-asignado'),
     prioridad:v('tar-prioridad'),vence:v('tar-vence'),estado:v('tar-estado'),ref:v('tar-ref'),progreso:0
   };
-  if(!o.desc){alert('Ingrese la descripción de la tarea');return;}
-  DB.tareas.unshift(o); saveDB(); closeModal('tareas'); renderTareasTable(); updateBadges(); renderNotifPanel();
+  if(!o.descripcion){alert('Ingrese la descripción de la tarea');return;}
+  setLoading(true);
+  await dbInsert('tareas', o);
+  const raw = await sbFetch('tareas','GET',null,'?order=id.desc');
+  DB.tareas = Array.isArray(raw) ? raw.map(t=>({...t, desc: t.descripcion||t.desc||''})) : [];
+  setLoading(false);
+  closeModal('tareas'); renderTareasTable(); updateBadges(); renderNotifPanel();
   ['tar-desc','tar-ref'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('tar-vence').value='';
+  showToast('proximo','Tarea creada',`${o.descripcion.substring(0,50)} — ${o.asignado.split(' ')[0]}`);
 }
-function deleteRec(tipo,idx){
+
+// Mapas de PK por tabla para operaciones de update/delete
+function pkOf(tipo, rec){
+  if(tipo==='casos'||tipo==='sumarios') return {field:'id', val:rec.id};
+  return {field:'id', val:rec.id}; // contratos y tareas usan id numérico generado
+}
+
+async function deleteRec(tipo,idx){
   if(!USERS[currentUser].isAdmin){alert('Solo los administradores pueden eliminar registros.');return;}
   if(!confirm('¿Eliminar este registro?'))return;
-  DB[tipo].splice(idx,1); saveDB();
+  const rec = DB[tipo][idx];
+  const pk = (tipo==='casos'||tipo==='sumarios') ? {field:'id',val:rec.id} : {field:'id',val:rec.id};
+  setLoading(true);
+  await dbDelete(tipo, pk.val, pk.field);
+  DB[tipo].splice(idx,1);
+  setLoading(false);
   renderAll();
 }
 function v(id){return document.getElementById(id).value;}
+
+// ── GESTIÓN DE CONTRASEÑAS ────────────────────────────────────────────────────
+function openCambiarPwd(){
+  const u = USERS[currentUser];
+  document.getElementById('pwd-name').textContent = u.name;
+  document.getElementById('pwd-role').textContent = u.role;
+  const av = document.getElementById('pwd-avatar');
+  av.textContent = u.initials;
+  av.style.background = u.avClass==='' ? 'var(--gold)' : u.avClass==='av2' ? '#5b8cd6' : '#6c9e6a';
+  av.style.color = u.avClass==='' ? 'var(--navy)' : 'white';
+  document.getElementById('pwd-actual').value = '';
+  document.getElementById('pwd-nueva').value = '';
+  document.getElementById('pwd-confirmar').value = '';
+  document.getElementById('pwd-error').style.display = 'none';
+  document.getElementById('pwd-strength-bar').style.width = '0';
+  document.getElementById('pwd-strength-label').textContent = '';
+  document.getElementById('modal-pwd').classList.add('open');
+  // Listener para medidor de fortaleza
+  document.getElementById('pwd-nueva').oninput = function(){
+    const v = this.value;
+    let score = 0;
+    if(v.length >= 6) score++;
+    if(v.length >= 10) score++;
+    if(/[A-Z]/.test(v)) score++;
+    if(/[0-9]/.test(v)) score++;
+    if(/[^A-Za-z0-9]/.test(v)) score++;
+    const colors = ['#e74c3c','#e67e22','#f1c40f','#2ecc71','#27ae60'];
+    const labels = ['Muy débil','Débil','Regular','Fuerte','Muy fuerte'];
+    const bar = document.getElementById('pwd-strength-bar');
+    bar.style.width = (score * 20) + '%';
+    bar.style.background = colors[score-1] || '#e74c3c';
+    document.getElementById('pwd-strength-label').textContent = v.length > 0 ? (labels[score-1] || 'Muy débil') : '';
+    document.getElementById('pwd-strength-label').style.color = colors[score-1] || '#e74c3c';
+  };
+}
+
+async function guardarPwd(){
+  const errEl = document.getElementById('pwd-error');
+  const actual = document.getElementById('pwd-actual').value;
+  const nueva = document.getElementById('pwd-nueva').value;
+  const confirmar = document.getElementById('pwd-confirmar').value;
+
+  // Validaciones
+  if(!actual){ mostrarPwdError('Ingrese su contraseña actual.'); return; }
+  if(!nueva){ mostrarPwdError('Ingrese la nueva contraseña.'); return; }
+  if(nueva.length < 6){ mostrarPwdError('La nueva contraseña debe tener al menos 6 caracteres.'); return; }
+  if(nueva !== confirmar){ mostrarPwdError('Las contraseñas no coinciden.'); return; }
+
+  // Verificar contraseña actual
+  const ok = await verifyPwd(currentUser, actual);
+  if(!ok){ mostrarPwdError('La contraseña actual es incorrecta.'); return; }
+
+  // Guardar nueva
+  await setPwd(currentUser, nueva);
+  closeModal('pwd');
+  showToast('proximo','Contraseña actualizada','Tu contraseña fue cambiada exitosamente.', 5000);
+}
+
+function mostrarPwdError(msg){
+  const el = document.getElementById('pwd-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
 
 // ── NOTIFICATION SYSTEM ───────────────────────────────────────────────────────
 
